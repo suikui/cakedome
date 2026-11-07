@@ -9,6 +9,7 @@ mod entities;
 mod support;
 
 mod before_find;
+mod extensions;
 mod hooks;
 mod keys;
 mod patch;

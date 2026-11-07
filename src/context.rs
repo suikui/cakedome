@@ -1,5 +1,7 @@
 //! The entry point of Repo operations: who (`Identity`) and which DB (a pool or a transaction).
 
+use std::any::{Any, TypeId};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use std::ops::Deref;
@@ -69,6 +71,7 @@ pub struct Context {
     registry: Arc<Registry>,
     /// Shared with Contexts made by `begin`.
     policy_cache: Arc<PolicyCache>,
+    extensions: Arc<HashMap<TypeId, Arc<dyn Any + Send + Sync>>>,
 }
 
 impl Context {
@@ -97,7 +100,26 @@ impl Context {
             authz,
             registry,
             policy_cache: Arc::default(),
+            extensions: Arc::default(),
         }
+    }
+
+    /// Returns the Context with `value` added (a value of the same type is replaced).
+    ///
+    /// Set values when creating the Context. They are inherited by transactions from `begin` and by
+    /// the Context of after-commit hooks. Adding a value starts a fresh Policy result cache, since
+    /// Policies may read it; transactions begun earlier keep the previous values and cache.
+    pub fn with_extension<T: Any + Send + Sync>(mut self, value: T) -> Self {
+        Arc::make_mut(&mut self.extensions).insert(TypeId::of::<T>(), Arc::new(value));
+        self.policy_cache = Arc::default();
+        self
+    }
+
+    /// Returns the value of type `T` added with `with_extension`, if any.
+    pub fn extension<T: Any + Send + Sync>(&self) -> Option<&T> {
+        self.extensions
+            .get(&TypeId::of::<T>())
+            .and_then(|v| v.downcast_ref::<T>())
     }
 
     /// Returns the identity of the request.
@@ -140,6 +162,7 @@ impl Context {
                 authz: self.authz.clone(),
                 registry: self.registry.clone(),
                 policy_cache: Arc::clone(&self.policy_cache),
+                extensions: Arc::clone(&self.extensions),
             },
             // A nested transaction hands its hooks to the outer one on commit.
             parent: self.pending.clone(),
@@ -246,6 +269,7 @@ impl Transaction {
             authz,
             registry,
             policy_cache,
+            extensions,
         } = ctx;
         let Conn::Tx(tx) = conn else {
             unreachable!("a Transaction always holds a transaction connection")
@@ -270,6 +294,7 @@ impl Transaction {
                     authz,
                     registry,
                     policy_cache,
+                    extensions,
                 };
                 run_hooks(&outside, hooks).await;
             }

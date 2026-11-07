@@ -12,6 +12,8 @@ mod support;
 
 #[path = "../db/before_find.rs"]
 mod before_find;
+#[path = "../db/extensions.rs"]
+mod extensions;
 #[path = "../db/hooks.rs"]
 mod hooks;
 #[path = "../db/keys.rs"]
