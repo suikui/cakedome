@@ -1,5 +1,7 @@
 # cakedome
 
+[日本語](README.ja.md)
+
 An ORM layer on [SeaORM](https://www.sea-ql.org/SeaORM/) that puts every read and write of an
 entity through a Repo with a Policy.
 
@@ -27,6 +29,34 @@ Status: 0.x. The API may change between minor versions.
   observers for every change.
 - **Optimistic locking** with `save_if_unmodified`.
 - **SQLite, PostgreSQL and MySQL.** The test suite runs on all three.
+
+## What cakedome does and what you write
+
+cakedome does:
+
+- Runs the Policy on every read and write, and reuses `TablePolicy` answers within a `Context`.
+- Reads and writes rows through SeaORM with soft delete, timestamps, optimistic locking,
+  transactions (savepoints when nested) and after-commit hooks.
+- Loads, filters across and saves associations, including nested saves and dependent deletes.
+- Turns request data into ActiveModels (type and length checks, unique and reference checks) and
+  rows into JSON.
+- Checks the registrations at startup: column and Rust types, association keys, default
+  `contain` paths.
+
+You write:
+
+- SeaORM entities and the database schema (migrations). cakedome does not create tables.
+- One `TableRules` implementation: your naming conventions decide each table's lifecycle, managed
+  columns, sort column, defaults and unique groups.
+- A Repo per entity (`impl Repo`, `TablePolicy` and `EntityPolicy`), or `DefaultRepo` when the
+  defaults are enough: labels, defaults, associations, validation, hooks and access rules.
+- Your user type (`impl Identity`), or `BasicIdentity` with permission strings.
+- Startup: build the `Registry`, optionally add translated messages (`set_messages`) and
+  observers, then call `verify()`.
+- Per request: create a `Context` with the identity, the DB connection to use and any values your
+  Policies need (`with_extension`).
+- Everything around the ORM: HTTP, authentication and sessions, mapping `RepoError` to responses,
+  and a generic JSON API if you want one (`layer` has the building blocks).
 
 ## Example
 
@@ -125,7 +155,7 @@ columns; [`examples/basic.rs`](examples/basic.rs) is the complete program.
 | `Repo` | Per-entity configuration: labels, defaults, associations, validation and hooks |
 | `TablePolicy`, `EntityPolicy` | Who may do what, on which rows and columns |
 | `Registry` | All Repos, built once at startup and checked with `verify()` |
-| `Context` | The identity and connection of one request; `ctx.repo::<R>()` returns a `RepoHandle` |
+| `Context` | The identity, connection and your values of one request; `ctx.repo::<R>()` returns a `RepoHandle` |
 | `Identity` | Your user type; `BasicIdentity` checks permission strings like `entity.orders.edit` |
 | `AuthzMark` | Records that an operation passed authorization, so a request handler can verify it |
 | `layer` | Building blocks for layers on top of the ORM, such as a JSON API |
