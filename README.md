@@ -148,6 +148,9 @@ async fn run(db: DatabaseConnection) -> Result<(), RepoError> {
 `customers` and `orders` are ordinary SeaORM entities with `is_active`, `created` and `modified`
 columns; [`examples/basic.rs`](examples/basic.rs) is the complete program.
 
+See the [guide](docs/guide.md) for every step: table rules, Repos, Policies, reading, writing,
+saving request data, hooks and messages.
+
 ## Concepts
 
 | | |

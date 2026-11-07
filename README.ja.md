@@ -127,6 +127,8 @@ async fn run(db: DatabaseConnection) -> Result<(), RepoError> {
 
 `customers` と `orders` は、`is_active`・`created`・`modified` の列を持つ、ふつうの SeaORM の Entity です。[`examples/basic.rs`](examples/basic.rs) が、そのまま動く完全なプログラムです。
 
+使い方の手順（テーブルの規則・Repo・Policy・読む・書く・リクエストの値の保存・フック・文言）は [使い方](docs/guide.ja.md) にあります。
+
 ## 主な型
 
 | | |
