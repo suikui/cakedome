@@ -1,0 +1,14 @@
+# `cargo deny check licenses`: every dependency must be under one of these permissive licenses.
+[graph]
+all-features = true
+
+[licenses]
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Unicode-3.0",
+    "ISC",
+    "BSD-3-Clause",
+    "Zlib",
+    "CDLA-Permissive-2.0",
+]

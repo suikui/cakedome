@@ -1,0 +1,39 @@
+[package]
+name = "cakedome"
+version = "0.1.0"
+edition = "2024"
+description = "An ORM layer on SeaORM that runs every read and write of an entity through a Repo with a Policy"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/suikui/cakedome"
+readme = "README.md"
+keywords = ["orm", "sea-orm", "database", "authorization", "policy"]
+categories = ["database"]
+
+[dependencies]
+sea-orm = { version = "2.0", default-features = false, features = ["macros", "with-json", "with-chrono", "with-uuid", "with-rust_decimal"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
+thiserror = "2"
+tracing = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4", "v7"] }
+tokio = { version = "1", features = ["rt"] }
+
+[dev-dependencies]
+sea-orm = { version = "2.0", default-features = false, features = ["sqlx-sqlite", "sqlx-postgres", "sqlx-mysql", "runtime-tokio-rustls"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[features]
+# Build the PostgreSQL and MySQL test suites (they need CAKEDOME_TEST_PG_URL / CAKEDOME_TEST_MYSQL_URL).
+test-postgres = []
+test-mysql = []
+
+[[test]]
+name = "db_pg"
+path = "tests/db_pg/main.rs"
+required-features = ["test-postgres"]
+
+[[test]]
+name = "db_mysql"
+path = "tests/db_mysql/main.rs"
+required-features = ["test-mysql"]
