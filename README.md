@@ -11,11 +11,16 @@ same ideas are written for Rust with typed declarations.
 
 Status: 0.x. The API may change between minor versions.
 
+All code in this repository, including the tests and documentation, is written by AI (Anthropic's
+Claude) under the maintainer's direction.
+
 ## Features
 
-- **Policies on every operation.** `TablePolicy` decides which actions are allowed, which rows are
-  visible (`scope`) and which columns are readable or writable; `EntityPolicy` decides per row.
-  `RepoHandle` methods cannot bypass them, except through an explicit `unchecked()` handle.
+- **Every read and write goes through the Policy.** `TablePolicy` decides whether an action is
+  allowed (`can`), which rows can be seen or changed (`scope`) and which columns can be read or
+  written (`columns`). `EntityPolicy` looks at a row's values to decide whether it may be added,
+  edited or deleted. Reads and writes through `ctx.repo::<R>()` cannot skip the Policy; only a
+  handle explicitly made with `unchecked()` (for seeds and batches) does.
 - **Typed associations.** `BelongsToOf`, `HasManyOf`, `HasOneOf` and `ManyToManyOf` are declared
   as constants with typed columns, so a wrong foreign key does not compile. They load with one
   `IN` query per association (`load`, `contain`), filter across associations, and save nested
