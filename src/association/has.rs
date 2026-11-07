@@ -7,7 +7,7 @@ use sea_orm::prelude::async_trait::async_trait;
 use sea_orm::{ColumnTrait, Condition, DbErr, EntityTrait, IdenStatic};
 use serde_json::Value as Json;
 
-use super::reference::{bulk_delete, delete, ids_where};
+use super::reference::{bulk_delete, bulk_purge, delete, ids_where, purge};
 use super::util::{can_contain, can_view, current_children, owner_value, row_key, target_subquery};
 use super::{
     Association, AssociationType, Cardinality, HasOf, NestedScope, RelationCondition, RelationInfo,
@@ -381,15 +381,23 @@ where
         ctx: &Context,
         parent: &RowId,
         unchecked: bool,
+        purge_all: bool,
     ) -> Result<(), RepoError> {
         let (filter, _) = self.association_query(ctx).await?;
-        let ids = ids_where::<T>(ctx, self.foreign_key.as_str(), parent, filter).await?;
-        if self.cascade_callbacks {
-            for child_id in ids {
-                delete::<T>(ctx, &child_id, unchecked).await?;
+        let ids = ids_where::<T>(ctx, self.foreign_key.as_str(), parent, filter, purge_all).await?;
+        match (self.cascade_callbacks, purge_all) {
+            (true, false) => {
+                for child_id in ids {
+                    delete::<T>(ctx, &child_id, unchecked).await?;
+                }
             }
-        } else {
-            bulk_delete::<T>(ctx, &ids).await?;
+            (true, true) => {
+                for child_id in ids {
+                    purge::<T>(ctx, &child_id, unchecked).await?;
+                }
+            }
+            (false, false) => bulk_delete::<T>(ctx, &ids).await?,
+            (false, true) => bulk_purge::<T>(ctx, &ids).await?,
         }
         Ok(())
     }

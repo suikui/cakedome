@@ -14,6 +14,7 @@ mod hooks;
 mod keys;
 mod patch;
 mod policy;
+mod purge;
 mod read;
 mod relations;
 mod sqlite_only;

@@ -102,6 +102,7 @@ pub(crate) async fn ids_where<R: GuardedRepo>(
     column: &str,
     value: &RowId,
     filter: Option<Condition>,
+    include_deleted: bool,
 ) -> Result<Vec<RowId>, RepoError> {
     let column = column_named::<R::Entity>(column)
         .ok_or_else(|| DbErr::Custom(format!("column {column} does not exist")))?;
@@ -109,7 +110,7 @@ pub(crate) async fn ids_where<R: GuardedRepo>(
     if let Some(filter) = filter {
         select = select.filter(filter);
     }
-    if let Some(alive) = not_soft_deleted::<R::Entity>(ctx) {
+    if !include_deleted && let Some(alive) = not_soft_deleted::<R::Entity>(ctx) {
         select = select.filter(alive);
     }
     Ok(select
@@ -126,6 +127,7 @@ pub(crate) async fn links_where<R: GuardedRepo>(
     column: &str,
     value: &RowId,
     other: &str,
+    include_deleted: bool,
 ) -> Result<Vec<(RowId, RowId)>, RepoError> {
     let (Some(column), Some(other)) = (
         column_named::<R::Entity>(column),
@@ -134,7 +136,7 @@ pub(crate) async fn links_where<R: GuardedRepo>(
         return Err(DbErr::Custom(format!("neither column {column} nor {other} exists")).into());
     };
     let mut select = R::Entity::find().filter(column.eq(Value::from(value)));
-    if let Some(alive) = not_soft_deleted::<R::Entity>(ctx) {
+    if !include_deleted && let Some(alive) = not_soft_deleted::<R::Entity>(ctx) {
         select = select.filter(alive);
     }
     Ok(select
@@ -157,6 +159,37 @@ pub(crate) async fn delete<R: GuardedRepo>(
         .without_before_find()
         .delete(id)
         .await
+}
+
+pub(crate) async fn purge<R: GuardedRepo>(
+    ctx: &Context,
+    id: &RowId,
+    unchecked: bool,
+) -> Result<(), RepoError> {
+    let Some(id) = Key::<R>::from_row_id(id) else {
+        return Err(RepoError::NotFound);
+    };
+    super::util::handle_of::<R>(ctx, unchecked)
+        .without_before_find()
+        .purge(id)
+        .await
+}
+
+/// Physically deletes the child rows `ids` with one statement, whatever the table lifecycle.
+/// Policy, hooks and observers are skipped.
+pub(crate) async fn bulk_purge<R: GuardedRepo>(
+    ctx: &Context,
+    ids: &[RowId],
+) -> Result<(), RepoError> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+    let values: Vec<Value> = ids.iter().map(Value::from).collect();
+    R::Entity::delete_many()
+        .filter(primary_column::<R>().is_in(values))
+        .exec(&ctx.conn())
+        .await?;
+    Ok(())
 }
 
 /// Deletes the child rows `ids` with one statement (no per-row callbacks).

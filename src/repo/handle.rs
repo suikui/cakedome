@@ -12,7 +12,7 @@ use sea_orm::{
 };
 
 use super::before_find::run_before_find;
-use super::guard::{authorize, base_condition, registered};
+use super::guard::{authorize, base_condition, registered, scoped_condition};
 use super::{Find, FindOptions, GuardedRepo, Loaded, RepoEntity, RepoError, typed_decl_of};
 use crate::association::{
     Association, LoadQuery, Loadable, PreparedChildren, PreparedParent, primary_column,
@@ -831,6 +831,20 @@ where
     /// Such a `delete` opens its own transaction (a savepoint inside one), and commit hooks run
     /// after commit.
     pub async fn delete(&self, id: Key<R>) -> Result<(), RepoError> {
+        self.remove(id, false).await
+    }
+
+    /// Physically deletes the row whatever the table lifecycle, including soft-deleted rows and
+    /// `Activatable` rows that `delete` refuses.
+    ///
+    /// Checks run as in `delete` (`can(Delete)`, `scope(Delete)` and `before_find`, `can_delete`),
+    /// but without the active-flag filter. Dependent children and join rows are purged too,
+    /// including deactivated ones. Delete hooks and observers run with `ChangeKind::Delete`.
+    pub async fn purge(&self, id: Key<R>) -> Result<(), RepoError> {
+        self.remove(id, true).await
+    }
+
+    async fn remove(&self, id: Key<R>, purge: bool) -> Result<(), RepoError> {
         let has_dependent = self
             .ctx
             .registry()
@@ -839,10 +853,10 @@ where
             .iter()
             .any(|a| a.dependent());
         if !has_dependent {
-            return self.delete_inner(self.ctx, id).await;
+            return self.delete_inner(self.ctx, id, purge).await;
         }
         let tx = self.ctx.begin().await?;
-        let result = self.delete_inner(&tx, id).await;
+        let result = self.delete_inner(&tx, id, purge).await;
         tx.finish(result).await
     }
 
@@ -877,13 +891,13 @@ where
         Ok(())
     }
 
-    async fn delete_inner(&self, ctx: &Context, id: Key<R>) -> Result<(), RepoError> {
+    async fn delete_inner(&self, ctx: &Context, id: Key<R>, purge: bool) -> Result<(), RepoError> {
         let spec = ctx.registry().spec_of::<E>();
-        if spec.lifecycle == Lifecycle::Activatable {
+        if !purge && spec.lifecycle == Lifecycle::Activatable {
             return Err(RepoError::NotDeletable);
         }
         let guard = authorize::<R>(ctx, Action::Delete, self.unchecked).await?;
-        let condition = base_condition::<E>(ctx, &guard, Action::Delete).await?;
+        let condition = scoped_condition::<E>(ctx, &guard, Action::Delete, !purge).await?;
         let found = self
             .before_find_condition(ctx, &guard.repo, Action::Delete)
             .await?;
@@ -897,12 +911,12 @@ where
             return Err(RepoError::Forbidden);
         }
         guard.repo.before_delete(ctx, &model).await?;
-        self.delete_dependents(ctx, &id, &model).await?;
+        self.delete_dependents(ctx, &id, &model, purge).await?;
         match (
             spec.lifecycle,
             spec.active_column.and_then(column_named::<E>),
         ) {
-            (Lifecycle::SoftDelete, Some(is_active)) => {
+            (Lifecycle::SoftDelete, Some(is_active)) if !purge => {
                 let mut am = model.clone().into_active_model();
                 am.try_set(is_active, Value::from(false))?;
                 if let Some(modified) = spec.modified_column.and_then(column_named::<E>) {
@@ -928,6 +942,7 @@ where
         ctx: &Context,
         id: &Key<R>,
         model: &E::Model,
+        purge: bool,
     ) -> Result<(), RepoError> {
         for relation in ctx.registry().relations_of::<E>().unwrap_or_default() {
             if !relation.dependent() {
@@ -945,7 +960,7 @@ where
                 None => id.clone().into_row_id(),
             };
             relation
-                .delete_dependents(ctx, &parent, self.unchecked)
+                .delete_dependents(ctx, &parent, self.unchecked, purge)
                 .await?;
         }
         Ok(())

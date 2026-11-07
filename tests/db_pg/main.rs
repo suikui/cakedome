@@ -22,6 +22,8 @@ mod keys;
 mod patch;
 #[path = "../db/policy.rs"]
 mod policy;
+#[path = "../db/purge.rs"]
+mod purge;
 #[path = "../db/read.rs"]
 mod read;
 #[path = "../db/relations.rs"]

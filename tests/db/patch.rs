@@ -1,9 +1,11 @@
 //! Body conversion and save (`cakedome::patch`) called directly, without an HTTP layer.
 
+use cakedome::Context;
 use cakedome::association::{BelongsToOf, HasManyOf};
+use cakedome::key::Key;
 use cakedome::patch::{PatchError, PatchOptions, Patching};
 use cakedome::registry::{Registry, RepoConfig, SaveStrategy};
-use cakedome::repo::{DefaultRepo, Repo, RepoError};
+use cakedome::repo::{DefaultRepo, GuardedRepo, Repo, RepoError};
 use sea_orm::prelude::Decimal;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
@@ -11,7 +13,7 @@ use sea_orm::{
 use serde_json::{Value, json};
 
 use crate::common::registry;
-use crate::entities::{configs, customers, measures, order_items, orders, prices};
+use crate::entities::{configs, customers, logs, measures, order_items, orders, prices};
 use crate::support::{context, db, identity, insert_customer, past};
 
 type Customers = DefaultRepo<customers::Entity>;
@@ -343,4 +345,103 @@ async fn messages_on_the_registry_replace_validation_and_warning_texts() {
         }
         other => panic!("expected Warnings: {:?}", other.err()),
     }
+}
+
+/// Customers whose saves from request data skip the optimistic lock.
+struct UnlockedCustomers;
+
+impl Repo for UnlockedCustomers {
+    type Entity = customers::Entity;
+
+    fn initialize(e: RepoConfig<'_, customers::Entity>) -> RepoConfig<'_, customers::Entity> {
+        e.optimistic_lock(false)
+    }
+}
+
+impl cakedome::policy::TablePolicy for UnlockedCustomers {}
+impl cakedome::policy::EntityPolicy for UnlockedCustomers {}
+
+type Logs = DefaultRepo<logs::Entity>;
+
+async fn patch_and_save<R: GuardedRepo>(
+    ctx: &Context,
+    id: Key<R>,
+    body: Value,
+) -> Result<<R::Entity as EntityTrait>::Model, PatchError> {
+    let repo = ctx.repo::<R>();
+    let patch = repo.patch(Some(id), &body).await?;
+    repo.save_patch(patch).await
+}
+
+#[tokio::test]
+async fn an_update_without_modified_is_a_bad_request_while_the_lock_is_on() {
+    let db = db().await;
+    let c = insert_customer(&db, "a", true).await;
+    let mut r = registry();
+    r.add(Customers::new());
+    let ctx = context(&db, identity(&["entity.customers.*"]), r);
+
+    let saved = patch_and_save::<Customers>(&ctx, c.id, json!({"data": {"name": "b"}})).await;
+
+    assert!(
+        matches!(saved, Err(PatchError::BadRequest(_))),
+        "{:?}",
+        saved.err()
+    );
+}
+
+#[tokio::test]
+async fn optimistic_lock_false_updates_without_modified_and_ignores_a_stale_one() {
+    let db = db().await;
+    let c = insert_customer(&db, "a", true).await;
+    let mut r = registry();
+    r.add(UnlockedCustomers);
+    let ctx = context(&db, identity(&["entity.customers.*"]), r);
+
+    let first = patch_and_save::<UnlockedCustomers>(&ctx, c.id, json!({"data": {"name": "b"}}))
+        .await
+        .unwrap();
+    let stale = (past() - chrono::Duration::days(1)).to_rfc3339();
+    let second = patch_and_save::<UnlockedCustomers>(
+        &ctx,
+        c.id,
+        json!({"data": {"name": "c"}, "modified": stale}),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(first.name, "b");
+    assert_eq!(second.name, "c");
+}
+
+#[tokio::test]
+async fn a_table_without_a_modified_column_is_updated_without_the_lock() {
+    let db = db().await;
+    let log = logs::ActiveModel {
+        message: Set("a".to_string()),
+        ..Default::default()
+    }
+    .insert(&db)
+    .await
+    .unwrap();
+    let mut r = registry();
+    r.add(Logs::new());
+    let ctx = context(&db, identity(&["entity.logs.*"]), r);
+
+    let saved = patch_and_save::<Logs>(&ctx, log.id, json!({"data": {"message": "b"}}))
+        .await
+        .unwrap();
+
+    assert_eq!(saved.message, "b");
+}
+
+#[test]
+fn the_lock_setting_is_on_the_entity_meta() {
+    let mut locked = registry();
+    locked.add(Customers::new());
+    let mut unlocked = registry();
+    unlocked.add(UnlockedCustomers);
+
+    assert!(locked.meta("customers").unwrap().optimistic_lock);
+    assert!(!unlocked.meta("customers").unwrap().optimistic_lock);
 }

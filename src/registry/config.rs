@@ -63,6 +63,13 @@ impl<E: EntityTrait> RepoConfig<'_, E> {
         self
     }
 
+    /// Sets whether saves from request data (`patch`) check the optimistic lock.
+    /// Explicit `save_if_unmodified` calls are not affected.
+    pub fn optimistic_lock(mut self, on: bool) -> Self {
+        self.meta().optimistic_lock = on;
+        self
+    }
+
     /// Configures a field: `f` receives a `FieldConfig` and returns it.
     pub fn field(mut self, column: E::Column, f: impl FnOnce(FieldConfig) -> FieldConfig) -> Self {
         let name = column.as_str();

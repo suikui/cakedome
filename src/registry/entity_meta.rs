@@ -57,6 +57,9 @@ pub struct EntityMeta {
     /// Whether the entity is exposed to generic layers (such as a JSON API); false for tables
     /// registered only for associations. Set with `RepoConfig::api`.
     pub api: bool,
+    /// Whether saves from request data check the optimistic lock (default true). Only tables with a
+    /// modified column are checked.
+    pub optimistic_lock: bool,
     /// The effects of a field change (`RepoConfig::on_change`), in declaration order.
     pub on_change: Vec<OnChange>,
     /// Columns whose default was set explicitly; `set_spec` does not overwrite them with rule
@@ -112,6 +115,7 @@ impl EntityMeta {
             default_contain: Vec::new(),
             display_field,
             api: true,
+            optimistic_lock: true,
             on_change: Vec::new(),
             explicit_defaults: HashSet::new(),
             extensions: Extensions::default(),

@@ -103,9 +103,20 @@ pub(super) async fn base_condition<E: EntityTrait>(
     guard: &Guard<impl GuardedRepo<Entity = E>>,
     action: Action,
 ) -> Result<Condition, RepoError> {
+    scoped_condition(ctx, guard, action, true).await
+}
+
+// `only_active` false keeps soft-deleted rows.
+pub(super) async fn scoped_condition<E: EntityTrait>(
+    ctx: &Context,
+    guard: &Guard<impl GuardedRepo<Entity = E>>,
+    action: Action,
+    only_active: bool,
+) -> Result<Condition, RepoError> {
     let mut cond = Condition::all().add(guard.scope(ctx, action).await?);
     let spec = ctx.registry().spec_of::<E>();
-    if spec.lifecycle == Lifecycle::SoftDelete
+    if only_active
+        && spec.lifecycle == Lifecycle::SoftDelete
         && let Some(is_active) = spec.active_column.and_then(column_named::<E>)
     {
         cond = cond.add(is_active.eq(true));

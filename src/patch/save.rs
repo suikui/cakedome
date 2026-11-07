@@ -103,12 +103,10 @@ where
             .get("data")
             .and_then(Json::as_object)
             .ok_or_else(|| PatchError::BadRequest("data is not an object".into()))?;
-        let expected = match id {
-            Some(_) => {
-                let modified = ctx.registry().spec_of::<E>().modified_column;
-                Some(parse_modified(body, modified)?)
-            }
-            None => None,
+        let modified = ctx.registry().spec_of::<E>().modified_column;
+        let expected = match (id, modified) {
+            (Some(_), Some(_)) if meta.optimistic_lock => Some(parse_modified(body, modified)?),
+            _ => None,
         };
         let mode = if id.is_some() {
             WriteMode::Edit

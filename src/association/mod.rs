@@ -317,6 +317,7 @@ pub trait Association: Send + Sync + fmt::Debug + 'static {
         _ctx: &Context,
         _parent: &RowId,
         _unchecked: bool,
+        _purge: bool,
     ) -> Result<(), RepoError> {
         Ok(())
     }

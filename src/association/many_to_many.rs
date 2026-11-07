@@ -11,7 +11,9 @@ use sea_orm::{
 };
 use serde_json::{Map, Value as Json};
 
-use super::reference::{binding_values, bulk_delete, delete, links_where, matching_by, selectable};
+use super::reference::{
+    binding_values, bulk_delete, bulk_purge, delete, links_where, matching_by, purge, selectable,
+};
 use super::util::{
     ColumnOf, ModelOf, can_contain, can_view, handle_of, owner_value, primary_column,
     require_parent, row_id_of, row_key, strip_same_values, target_subquery,
@@ -329,12 +331,14 @@ where
         ctx: &Context,
         parent: &RowId,
         unchecked: bool,
+        purge_all: bool,
     ) -> Result<(), RepoError> {
         let links = links_where::<J>(
             ctx,
             self.foreign_key.as_str(),
             parent,
             self.target_foreign_key.as_str(),
+            purge_all,
         )
         .await?;
         let mut ids: Vec<RowId> = links.iter().map(|(_, t)| t.clone()).collect();
@@ -351,12 +355,19 @@ where
             .filter(|(_, target_id)| matched.as_ref().is_none_or(|s| s.contains(target_id)))
             .map(|(link_id, _)| link_id)
             .collect();
-        if self.cascade_callbacks {
-            for link_id in doomed {
-                delete::<J>(ctx, &link_id, unchecked).await?;
+        match (self.cascade_callbacks, purge_all) {
+            (true, false) => {
+                for link_id in doomed {
+                    delete::<J>(ctx, &link_id, unchecked).await?;
+                }
             }
-        } else {
-            bulk_delete::<J>(ctx, &doomed).await?;
+            (true, true) => {
+                for link_id in doomed {
+                    purge::<J>(ctx, &link_id, unchecked).await?;
+                }
+            }
+            (false, false) => bulk_delete::<J>(ctx, &doomed).await?,
+            (false, true) => bulk_purge::<J>(ctx, &doomed).await?,
         }
         Ok(())
     }
@@ -761,8 +772,14 @@ impl<J: GuardedRepo, T: GuardedRepo> PreparedChildren for UnlinkLinks<J, T> {
             }
             None => self.ids.iter().cloned().collect(),
         };
-        let links =
-            links_where::<J>(tx, &self.parent_column, &parent_id, &self.target_column).await?;
+        let links = links_where::<J>(
+            tx,
+            &self.parent_column,
+            &parent_id,
+            &self.target_column,
+            false,
+        )
+        .await?;
         let doomed: Vec<RowId> = links
             .into_iter()
             .filter(|(_, target_id)| values.contains(target_id))
