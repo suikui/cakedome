@@ -41,8 +41,9 @@ where
     /// `orders.1.items.0.quantity` or `orders.0.tags.1`. Any failure rolls everything back.
     ///
     /// - `save` opens its own transaction (a savepoint inside one), unlike `RepoHandle::save`.
-    /// - `save_with` sets the child's foreign key and `seq`; a row with the foreign key `Set` is a
-    ///   `ManagedColumn`. `replace` and `replace_links` renumber `seq` in the order sent; `append`
+    /// - `save_with` sets the child's foreign key and order column; a row with the foreign key `Set`
+    ///   is a `ManagedColumn`. `replace` and `replace_links` renumber the order column, if the table
+    ///   has one, in the order sent; `append`
     ///   leaves it.
     /// - Children and join rows are written through their own Repo, so its permissions, `validate`
     ///   and hooks apply. From an `unchecked()` handle they are written unchecked too.
@@ -83,7 +84,7 @@ where
 ///
 /// Declarations are checked against the registry when passed to `save_with`; a mismatch or a
 /// repeated association in one row is a `Db` error returned by `save`. Each level is written
-/// through its own Repo; the parent sets foreign keys and `seq`. Error keys are paths such as
+/// through its own Repo; the parent sets foreign keys and order columns. Error keys are paths such as
 /// `orders.0.product.field`.
 pub struct Nested<T: GuardedRepo> {
     am: <T::Entity as EntityTrait>::ActiveModel,
@@ -312,8 +313,8 @@ where
     }
 
     /// hasMany: the rows sent are authoritative. Rows with a primary key are updated, others
-    /// inserted, and current children not sent are deleted. `seq` is renumbered from 1 in the order
-    /// sent. Rows are plain `ActiveModel`s.
+    /// inserted, and current children not sent are deleted. The order column, if any, is
+    /// renumbered from 1 in the order sent. Rows are plain `ActiveModel`s.
     pub fn replace<T: GuardedRepo, K: RowKey>(
         self,
         association: HasManyOf<R, T, K>,
@@ -340,7 +341,7 @@ where
         self.root(|n| n.append_nested(association, rows))
     }
 
-    /// hasMany: adds or updates only; current children not sent stay and `seq` is not renumbered.
+    /// hasMany: adds or updates only; current children not sent stay and are not renumbered.
     pub fn append<T: GuardedRepo, K: RowKey>(
         self,
         association: HasManyOf<R, T, K>,
@@ -349,8 +350,8 @@ where
         self.root(|n| n.append(association, rows))
     }
 
-    /// many-to-many: relinks to the given target ids. Dropped links are deleted and `seq` follows
-    /// the order sent.
+    /// many-to-many: relinks to the given target ids. Dropped links are deleted; a join table with an
+    /// order column follows the order sent.
     pub fn replace_links<J: GuardedRepo, T: GuardedRepo, K: RowKey, TK: RowKey>(
         self,
         association: ManyToManyOf<R, J, T, K, TK>,

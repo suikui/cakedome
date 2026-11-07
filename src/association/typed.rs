@@ -420,7 +420,7 @@ impl<S: GuardedRepo, J: GuardedRepo, T: GuardedRepo, K: RowKey, TK: RowKey>
     }
 
     /// Sets the order of the targets, placed before the target's default order when reading.
-    /// Without it targets follow the join table's `seq`.
+    /// Without it targets follow the join table's default order (its order column, else its key).
     pub const fn sort(
         mut self,
         sort: &'static [(<T::Entity as EntityTrait>::Column, SortOrder)],

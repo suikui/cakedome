@@ -66,7 +66,7 @@ where
     ///   through the child's Repo (insert without a primary key, update with one, so a child of
     ///   another parent is moved). Existing children are kept.
     /// - many-to-many: adds join rows only for targets not yet linked, after the current last
-    ///   `seq`. New targets are checked against `selectable` and the association's condition; a
+    ///   position when the join table has an order column. New targets are checked against `selectable` and the association's condition; a
     ///   failure adds `invalid_ref` under `name.index` and writes nothing.
     ///
     /// Checks the parent's `can(Edit)` (unless `unchecked`) and runs in one transaction (a

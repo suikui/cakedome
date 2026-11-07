@@ -86,8 +86,8 @@ impl TableRules for AppRules {
 Return `Err` to stop at startup when a table breaks your conventions. A single table can override
 the result with `RepoConfig::table_spec`.
 
-The order column can have any name (`seq` is only this example's convention). A many-to-many join
-table needs one.
+The order column can have any name (`seq` is only this example's convention). A join table without
+one keeps no order, and its links are read in key order.
 
 ## 3. Repos
 
@@ -161,7 +161,7 @@ Associations are constants on the Repo, so foreign keys are typed columns:
 | `ManyToManyOf<S, J, T>` | `J` (the join table) | `save(strategy)`, `dependent`, `cascade_callbacks`, `filter`, `sort`, `label`, `binding_key`, `finder` |
 
 `SaveStrategy::Replace` makes the sent children the full set (others are dropped and the order
-column is renumbered); `Append` only adds and updates. `dependent(true)` deletes the children with
+column, if any, is renumbered); `Append` only adds and updates. `dependent(true)` deletes the children with
 the parent.
 
 Other settings in `initialize`:

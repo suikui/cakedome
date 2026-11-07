@@ -243,3 +243,22 @@ pub mod setting_order_tags {
 
     impl ActiveModelBehavior for ActiveModel {}
 }
+
+/// A join table of orders and tags without an order column.
+pub mod order_tag_links {
+    use sea_orm::entity::prelude::*;
+
+    #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
+    #[sea_orm(table_name = "order_tag_links")]
+    pub struct Model {
+        #[sea_orm(primary_key)]
+        pub id: i64,
+        pub order_id: i64,
+        pub tag_id: i64,
+    }
+
+    #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+    pub enum Relation {}
+
+    impl ActiveModelBehavior for ActiveModel {}
+}

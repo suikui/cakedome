@@ -29,5 +29,7 @@ mod read;
 #[path = "../db/relations.rs"]
 mod relations;
 mod row_lock;
+#[path = "../db/unordered_links.rs"]
+mod unordered_links;
 #[path = "../db/write.rs"]
 mod write;

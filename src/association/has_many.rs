@@ -104,7 +104,7 @@ where
         let fk = column_named::<E>(&column)
             .ok_or_else(|| DbErr::Custom(format!("foreign key column {column} does not exist")))?;
         let pk = primary_column::<R>();
-        // With Replace and a seq column, rows are numbered from 1 in the order sent.
+        // With Replace and an order column, rows are numbered from 1 in the order sent.
         let seq = if save == SaveStrategy::Replace {
             tx.registry()
                 .spec_of::<E>()

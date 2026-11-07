@@ -28,7 +28,7 @@ pub(crate) struct ChildSpec<'a> {
     pub(crate) scope: NestedScope,
 }
 
-// The two foreign keys are `unknown` and the sequence column is `read_only`.
+// The two foreign keys are `unknown` and the order column is `read_only`.
 pub(crate) async fn prepare_join<J: GuardedRepo>(
     ctx: &Context,
     spec: &JoinSpec<'_>,
@@ -53,7 +53,7 @@ pub(crate) struct JoinSpec<'a> {
 
 // - A row `id` makes it an update (`Edit`), otherwise an insert (`Add`); a repeated `id` is
 //   `duplicate`.
-// - The foreign key is `unknown`. With `Replace` and a `seq` column, `seq` is `read_only`. Columns
+// - The foreign key is `unknown`. With `Replace` and an order column, that column is `read_only`. Columns
 //   not readable for the table are `unknown`.
 // - Only `AppendWithDelete` reads `_delete` as a delete mark; a mark on a row without `id` means
 //   "do not add".

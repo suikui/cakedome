@@ -82,7 +82,7 @@ impl TableRules for AppRules {
 
 表が規則に合わないときは `Err` を返すと、起動のときに止まります。1つの表だけ変えたいときは、`RepoConfig::table_spec` で上書きできます。
 
-並び順の列の名前は自由です（`seq` はこの例の決まりです）。多対多の中間テーブルには、並び順の列が要ります。
+並び順の列の名前は自由です（`seq` はこの例の決まりです）。並び順の列の無い中間テーブルは並び順を持たず、組は主キーの順に読みます。
 
 ## 3. Repo
 
@@ -154,7 +154,7 @@ impl Repo for OrdersRepo {
 | `HasOneOf<S, T>` | `T`（子） | `save()`・`dependent`・`cascade_callbacks`・`filter`・`label`・`binding_key`・`finder` |
 | `ManyToManyOf<S, J, T>` | `J`（中間テーブル） | `save(方式)`・`dependent`・`cascade_callbacks`・`filter`・`sort`・`label`・`binding_key`・`finder` |
 
-`SaveStrategy::Replace` は、送った子を全体とします（送らなかった子は外し、並び順の列を振り直します）。`Append` は足すか直すだけです。`dependent(true)` にすると、親と一緒に子も消します。
+`SaveStrategy::Replace` は、送った子を全体とします（送らなかった子は外し、並び順の列があれば振り直します）。`Append` は足すか直すだけです。`dependent(true)` にすると、親と一緒に子も消します。
 
 `initialize` で使えるほかの設定:
 

@@ -11,7 +11,7 @@ use sea_orm::{
 
 use crate::entities::{
     configs, countries, customer_notes, customers, documents, logs, master_tags, measures,
-    order_items, orders, prices, setting_order_tags,
+    order_items, order_tag_links, orders, prices, setting_order_tags,
 };
 
 pub use crate::backend::db;
@@ -31,6 +31,7 @@ pub async fn connect(options: ConnectOptions) -> DatabaseConnection {
     create(&db, &schema, orders::Entity).await;
     create(&db, &schema, order_items::Entity).await;
     create(&db, &schema, setting_order_tags::Entity).await;
+    create(&db, &schema, order_tag_links::Entity).await;
     db
 }
 

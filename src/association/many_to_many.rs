@@ -477,7 +477,7 @@ impl<J: GuardedRepo> LinkState<J> {
 /// `spec.filter`, only pairs whose target matches are current (others are neither deleted nor
 /// renumbered) and new targets must match too. Second-stage errors go to `errors` as
 /// `name.N._joinData.field`. With `add_only` (`Append`, `link`) only targets without a pair are
-/// added, `seq` counts from the current maximum, and nothing is deleted.
+/// added, the order column counts from the current maximum, and nothing is deleted.
 pub(crate) async fn replace_links<J: GuardedRepo, T: GuardedRepo, TK: RowKey>(
     ctx: &Context,
     spec: &LinkSpec<'_>,
@@ -496,27 +496,19 @@ pub(crate) async fn replace_links<J: GuardedRepo, T: GuardedRepo, TK: RowKey>(
         spec.parent_column,
         spec.target_column,
     )?;
+    // A join table without an order column keeps no order; links are read in key order.
     let seq = ctx
         .registry()
         .spec_of::<J::Entity>()
         .order_column
-        .and_then(column_named::<J::Entity>)
-        .ok_or_else(|| {
-            DbErr::Custom(format!(
-                "{}: the sort column does not exist",
-                <J as Repo>::repo_name()
-            ))
-        })?;
+        .and_then(column_named::<J::Entity>);
     let pk = primary_column::<J>();
     let state = LinkState::<J>::load::<T, TK>(ctx, spec, parent_id, target_ids, unchecked).await?;
     let mut joins = joins;
     joins.resize_with(target_ids.len(), || None);
     let mut changed = false;
-    let mut next_seq = state
-        .current
-        .iter()
-        .map(|m| seq_of(&m.get(seq)))
-        .max()
+    let mut next_seq = seq
+        .and_then(|seq| state.current.iter().map(|m| seq_of(&m.get(seq))).max())
         .unwrap_or(0)
         .saturating_add(1);
     for (position, (sent_id, link_value)) in target_ids.iter().zip(&state.link_values).enumerate() {
@@ -549,7 +541,10 @@ pub(crate) async fn replace_links<J: GuardedRepo, T: GuardedRepo, TK: RowKey>(
                 });
                 am.try_set(pk, id.into())?;
                 let mut any = strip_same_values::<J>(&mut am, now);
-                if !add_only && now.get(seq) != Value::from(number) {
+                if let Some(seq) = seq
+                    && !add_only
+                    && now.get(seq) != Value::from(number)
+                {
                     am.try_set(seq, Value::from(number))?;
                     any = true;
                 }
@@ -581,7 +576,9 @@ pub(crate) async fn replace_links<J: GuardedRepo, T: GuardedRepo, TK: RowKey>(
                 am.not_set(pk);
                 am.try_set(parent, Value::from(parent_id))?;
                 am.try_set(target, Value::from(target_id))?;
-                am.try_set(seq, Value::from(number))?;
+                if let Some(seq) = seq {
+                    am.try_set(seq, Value::from(number))?;
+                }
                 (am, true)
             }
         };

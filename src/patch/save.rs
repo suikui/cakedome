@@ -34,7 +34,7 @@ pub(super) struct RowSpec<'a, R: GuardedRepo> {
     // Columns hidden from input: a hasMany child's foreign key (two for a many-to-many
     // `_joinData`).
     pub(super) hidden_columns: &'a [&'a str],
-    // Columns input cannot write: the sequence column of a `Replace` child.
+    // Columns input cannot write: the order column of a `Replace` child.
     pub(super) read_only_column: Option<&'a str>,
     pub(super) defaults: bool,
     // False for rows with a delete mark.
