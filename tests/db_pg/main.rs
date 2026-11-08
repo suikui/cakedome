@@ -22,6 +22,10 @@ mod extensions;
 mod hooks;
 #[path = "../db/keys.rs"]
 mod keys;
+#[path = "../db/lookups.rs"]
+mod lookups;
+#[path = "../db/observers.rs"]
+mod observers;
 #[path = "../db/patch.rs"]
 mod patch;
 #[path = "../db/patch_associations.rs"]
@@ -39,6 +43,8 @@ mod relations;
 mod row_lock;
 #[path = "../db/save_associations.rs"]
 mod save_associations;
+#[path = "../db/unique_and_warnings.rs"]
+mod unique_and_warnings;
 #[path = "../db/unordered_links.rs"]
 mod unordered_links;
 #[path = "../db/write.rs"]
