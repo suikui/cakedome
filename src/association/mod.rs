@@ -1,6 +1,77 @@
 //! Registered associations: the `Association` trait and its typed implementations (belongsTo,
 //! hasMany, hasOne, many-to-many), with the declarations in `typed` and the write side in the
 //! other modules.
+//!
+//! The foreign key of a declaration is a column of the owning Entity, so a column of another
+//! Entity is a compile error.
+//!
+//! ```rust
+//! # mod customers {
+//! #     use sea_orm::entity::prelude::*;
+//! #     #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
+//! #     #[sea_orm(table_name = "customers")]
+//! #     pub struct Model {
+//! #         #[sea_orm(primary_key)]
+//! #         pub id: i64,
+//! #     }
+//! #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+//! #     pub enum Relation {}
+//! #     impl ActiveModelBehavior for ActiveModel {}
+//! # }
+//! # mod orders {
+//! #     use sea_orm::entity::prelude::*;
+//! #     #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
+//! #     #[sea_orm(table_name = "orders")]
+//! #     pub struct Model {
+//! #         #[sea_orm(primary_key)]
+//! #         pub id: i64,
+//! #         pub customer_id: i64,
+//! #     }
+//! #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+//! #     pub enum Relation {}
+//! #     impl ActiveModelBehavior for ActiveModel {}
+//! # }
+//! # use cakedome::DefaultRepo;
+//! # use cakedome::association::BelongsToOf;
+//! # type CustomersRepo = DefaultRepo<customers::Entity>;
+//! # type OrdersRepo = DefaultRepo<orders::Entity>;
+//! const CUSTOMER: BelongsToOf<OrdersRepo, CustomersRepo> =
+//!     BelongsToOf::new("customer", orders::Column::CustomerId);
+//! ```
+//!
+//! ```compile_fail,E0271
+//! # mod customers {
+//! #     use sea_orm::entity::prelude::*;
+//! #     #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
+//! #     #[sea_orm(table_name = "customers")]
+//! #     pub struct Model {
+//! #         #[sea_orm(primary_key)]
+//! #         pub id: i64,
+//! #     }
+//! #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+//! #     pub enum Relation {}
+//! #     impl ActiveModelBehavior for ActiveModel {}
+//! # }
+//! # mod orders {
+//! #     use sea_orm::entity::prelude::*;
+//! #     #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
+//! #     #[sea_orm(table_name = "orders")]
+//! #     pub struct Model {
+//! #         #[sea_orm(primary_key)]
+//! #         pub id: i64,
+//! #         pub customer_id: i64,
+//! #     }
+//! #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+//! #     pub enum Relation {}
+//! #     impl ActiveModelBehavior for ActiveModel {}
+//! # }
+//! # use cakedome::DefaultRepo;
+//! # use cakedome::association::BelongsToOf;
+//! # type CustomersRepo = DefaultRepo<customers::Entity>;
+//! # type OrdersRepo = DefaultRepo<orders::Entity>;
+//! const CUSTOMER: BelongsToOf<OrdersRepo, CustomersRepo> =
+//!     BelongsToOf::new("customer", customers::Column::Id);
+//! ```
 
 mod belongs_to;
 mod filter;

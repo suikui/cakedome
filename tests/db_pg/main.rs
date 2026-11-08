@@ -16,6 +16,8 @@ mod association_conditions;
 mod before_find;
 #[path = "../db/contain.rs"]
 mod contain;
+#[path = "../db/edge_cases.rs"]
+mod edge_cases;
 #[path = "../db/extensions.rs"]
 mod extensions;
 #[path = "../db/hooks.rs"]
@@ -34,6 +36,8 @@ mod patch_associations;
 mod patch_links;
 #[path = "../db/policy.rs"]
 mod policy;
+#[path = "../db/policy_matrix.rs"]
+mod policy_matrix;
 #[path = "../db/purge.rs"]
 mod purge;
 #[path = "../db/read.rs"]
