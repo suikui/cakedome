@@ -205,7 +205,7 @@ where
             prepared,
             ..
         } = *self;
-        let adding = !matches!(am.get(primary_column::<T>()), sea_orm::ActiveValue::Set(_));
+        let adding = matches!(am.get(primary_column::<T>()), sea_orm::ActiveValue::NotSet);
         match handle_of::<T>(ctx, unchecked)
             .save_associated(am, None, parents, prepared, adding)
             .await
