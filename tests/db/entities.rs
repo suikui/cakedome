@@ -122,6 +122,31 @@ pub mod customer_notes {
     impl ActiveModelBehavior for ActiveModel {}
 }
 
+/// Customer billing address (hasOne target, hard delete). One row per customer.
+pub mod customer_billings {
+    use sea_orm::entity::prelude::*;
+
+    #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
+    #[sea_orm(table_name = "customer_billings")]
+    pub struct Model {
+        #[sea_orm(primary_key)]
+        pub id: i64,
+        #[sea_orm(unique)]
+        pub customer_id: i64,
+        #[sea_orm(column_type = "String(StringLen::N(50))")]
+        pub billing_name: String,
+        #[sea_orm(column_type = "String(StringLen::N(100))", nullable)]
+        pub address: Option<String>,
+        pub created: DateTimeUtc,
+        pub modified: DateTimeUtc,
+    }
+
+    #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+    pub enum Relation {}
+
+    impl ActiveModelBehavior for ActiveModel {}
+}
+
 pub mod prices {
     use sea_orm::entity::prelude::*;
 
@@ -211,6 +236,7 @@ pub mod order_items {
         pub order_id: i64,
         #[sea_orm(column_type = "String(StringLen::N(50))")]
         pub name: String,
+        pub tag_id: Option<i64>,
         /// hasMany `link` does not set `seq`, so the DB default is 0.
         #[sea_orm(default_value = 0)]
         pub seq: i32,

@@ -17,6 +17,7 @@ mod policy;
 mod purge;
 mod read;
 mod relations;
+mod save_associations;
 mod sqlite_only;
 mod unordered_links;
 mod write;

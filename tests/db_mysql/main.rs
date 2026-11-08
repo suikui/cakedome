@@ -30,6 +30,8 @@ mod read;
 mod relations;
 #[path = "../db_pg/row_lock.rs"]
 mod row_lock;
+#[path = "../db/save_associations.rs"]
+mod save_associations;
 #[path = "../db/unordered_links.rs"]
 mod unordered_links;
 #[path = "../db/write.rs"]
