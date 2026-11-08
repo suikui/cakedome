@@ -1,6 +1,6 @@
 [package]
 name = "cakedome"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "An ORM layer on SeaORM that runs every read and write of an entity through a Repo with a Policy"
 license = "MIT OR Apache-2.0"
