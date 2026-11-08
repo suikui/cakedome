@@ -8,6 +8,7 @@ use sea_orm::{ColumnTrait, Condition, DbErr, EntityTrait, IdenStatic};
 use serde_json::Value as Json;
 
 use super::reference::{bulk_delete, bulk_purge, delete, ids_where, purge};
+use super::typed::require_id_key;
 use super::util::{can_contain, can_view, current_children, owner_value, row_key, target_subquery};
 use super::{
     Association, AssociationType, Cardinality, HasOf, NestedScope, RelationCondition, RelationInfo,
@@ -312,6 +313,9 @@ where
     }
 
     fn verify(&self, owner: &EntityMeta, registry: &Registry) {
+        registry.check_declared_repo::<S>(&owner.name, self.name, "own");
+        registry.check_declared_repo::<T>(&owner.name, self.name, "target");
+        require_id_key::<S>(&owner.name, self.name, "parent");
         let target = require_target(self, owner, registry);
         let foreign_key = self.foreign_key.as_str();
         if !target.fields.iter().any(|f| f.name == foreign_key) {

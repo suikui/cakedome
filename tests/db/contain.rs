@@ -2,9 +2,14 @@
 //! (`to_json`, `_label`, `_joinData`).
 
 use cakedome::Context;
-use cakedome::association::{BelongsToOf, HasManyOf, HasOneOf, ManyToManyOf};
+use std::any::Any;
+
+use cakedome::association::{
+    Association, AssociationType, BelongsToOf, Cardinality, HasManyOf, HasOneOf, ManyToManyOf,
+    RelationInfo, RelationKind,
+};
 use cakedome::policy::{ColumnAccess, EntityPolicy, TablePolicy};
-use cakedome::registry::{Registry, RepoConfig};
+use cakedome::registry::{EntityMeta, Registry, RepoConfig};
 use cakedome::repo::{Containable, Loaded, NotLoaded, Repo, RepoError};
 use sea_orm::prelude::async_trait::async_trait;
 use sea_orm::{ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, DbErr, Set};
@@ -44,9 +49,8 @@ struct Setup {
     customer_label_email: bool,
     /// The display field of order items is `seq` (a number).
     item_label_seq: bool,
-    /// `customers` has an association whose declaration belongs to another Repo type, listed in
-    /// `default_contain`.
-    broken_default: bool,
+    /// `customers` has an association that is not a typed declaration, listed in `default_contain`.
+    custom_default: bool,
 }
 
 struct TagsRepo(Setup);
@@ -140,8 +144,6 @@ impl CustomersRepo {
         HasManyOf::new("orders", orders::Column::CustomerId);
     const BILLING: HasOneOf<Self, BillingsRepo> =
         HasOneOf::new("billing", customer_billings::Column::CustomerId);
-    const BROKEN: HasManyOf<AltCustomersRepo, OrdersRepo> =
-        HasManyOf::new("broken", orders::Column::CustomerId);
 }
 
 impl Repo for CustomersRepo {
@@ -174,15 +176,70 @@ impl TablePolicy for CustomersRepo {
 
 impl EntityPolicy for CustomersRepo {}
 
-/// Another Repo type for the customers entity; never registered.
-struct AltCustomersRepo;
+/// An association written by hand: it has no typed declaration to look up.
+#[derive(Debug)]
+struct CustomAssociation;
 
-impl Repo for AltCustomersRepo {
-    type Entity = customers::Entity;
+#[async_trait]
+impl Association for CustomAssociation {
+    fn name(&self) -> &'static str {
+        "custom"
+    }
+
+    fn target(&self) -> &'static str {
+        "orders"
+    }
+
+    fn info(&self) -> RelationInfo {
+        RelationInfo {
+            name: "custom",
+            kind: RelationKind::Custom("custom"),
+            target: "orders",
+            through: None,
+            foreign_key: "customer_id",
+            target_foreign_key: None,
+            binding_key: None,
+            target_binding_key: None,
+            label: None,
+            save: None,
+            filtered: false,
+            finder: false,
+            sort: Vec::new(),
+            dependent: false,
+            cascade_callbacks: true,
+        }
+    }
+
+    fn cardinality(&self) -> Cardinality {
+        Cardinality::Many
+    }
+
+    fn verify(&self, _owner: &EntityMeta, _registry: &Registry) {}
+
+    async fn usable(&self, _ctx: &Context) -> Result<bool, RepoError> {
+        Ok(true)
+    }
+
+    fn association_type(&self) -> AssociationType {
+        AssociationType::OneToMany
+    }
+
+    async fn matching_condition(
+        &self,
+        _ctx: &Context,
+        target: Condition,
+    ) -> Result<Condition, RepoError> {
+        Ok(target)
+    }
+
+    fn typed_contain(&self) -> Box<dyn Any + Send + Sync> {
+        Box::new(())
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
-
-impl TablePolicy for AltCustomersRepo {}
-impl EntityPolicy for AltCustomersRepo {}
 
 struct OrdersRepo;
 
@@ -237,9 +294,9 @@ fn build_registry(s: Setup) -> Registry {
     } else {
         c
     };
-    if s.broken_default {
-        c.add_association(CustomersRepo::BROKEN)
-            .default_contain(["orders", "broken"]);
+    if s.custom_default {
+        c.add_association(CustomAssociation)
+            .default_contain(["orders", "custom"]);
     }
     r.add(OrdersRepo);
     r.verify();
@@ -812,35 +869,38 @@ async fn explicit_contain_adds_to_the_default_but_not_twice() {
 }
 
 #[tokio::test]
-async fn default_naming_an_association_declared_for_another_repo_type_fails_to_look_it_up() {
+async fn default_naming_a_hand_written_association_fails_to_look_it_up() {
     let db = db().await;
     let o = full_order(&db, "bk").await;
     let ctx = ctx_with(
         &db,
         ALL,
         Setup {
-            broken_default: true,
+            custom_default: true,
             ..Setup::default()
         },
     );
 
-    // A checked read drops the level (its owner Repo is not the registered one); only `unchecked`
-    // tries to look it up.
-    let res = ctx
-        .repo::<Customers>()
-        .unchecked()
-        .find()
-        .filter(customers::Column::Id.eq(o.customer_id))
-        .contain_default()
-        .all()
-        .await;
+    for unchecked in [false, true] {
+        let customers = ctx.repo::<Customers>();
+        let find = if unchecked {
+            customers.unchecked().find()
+        } else {
+            customers.find()
+        };
+        let res = find
+            .filter(customers::Column::Id.eq(o.customer_id))
+            .contain_default()
+            .all()
+            .await;
 
-    match res {
-        Err(RepoError::Db(DbErr::Custom(message))) => assert!(
-            message.contains("cannot look up the typed declaration of association broken"),
-            "{message}"
-        ),
-        other => panic!("{other:?}"),
+        match res {
+            Err(RepoError::Db(DbErr::Custom(message))) => assert!(
+                message.contains("cannot look up the typed declaration of association custom"),
+                "{message}"
+            ),
+            other => panic!("unchecked={unchecked}: {other:?}"),
+        }
     }
 }
 

@@ -45,12 +45,6 @@ impl RepoType {
     }
 }
 
-pub(crate) struct TypedCheck {
-    pub(crate) association: &'static str,
-    pub(crate) role: &'static str,
-    pub(crate) declared: RepoType,
-}
-
 /// The registration of one entity; the Repo is held type-erased.
 struct Entry {
     meta: EntityMeta,
@@ -63,7 +57,6 @@ struct Entry {
     own_warn_duplicates: Vec<Vec<&'static str>>,
     /// The registered Repo type, compared by `verify` with the types of typed declarations.
     repo_type: RepoType,
-    typed_checks: Vec<TypedCheck>,
     skipped_observers: Vec<&'static str>,
 }
 
@@ -187,7 +180,6 @@ impl Registry {
             own_uniques,
             own_warn_duplicates: Vec::new(),
             repo_type: RepoType::of::<R>(),
-            typed_checks: Vec::new(),
             skipped_observers: Vec::new(),
         };
         if self
@@ -278,26 +270,11 @@ impl Registry {
     /// It checks that association targets are registered (with the table name in the message), that
     /// hasMany children have the foreign key column, the second and later levels of
     /// `default_contain`, dynamic defaults (`DynamicDefault::verify`), `skip_observer` names, the
-    /// `on_change` declarations, and that the types of typed declarations match the registered Repo
-    /// types.
+    /// `on_change` declarations, and that the Repo types of typed declarations (including those added
+    /// with `RepoConfig::add_association`) match the registered Repo types.
     pub fn verify(&self) {
         for full in self.entries.values() {
             let entry = &full.meta;
-            for check in &full.typed_checks {
-                let declared = check.declared;
-                if let Some(registered) = self.entries.get(&declared.entity)
-                    && registered.repo_type.repo != declared.repo
-                {
-                    panic!(
-                        "{}: association {}: {} type {} differs from the registered Repo type {}",
-                        entry.name,
-                        check.association,
-                        check.role,
-                        declared.name,
-                        registered.repo_type.name
-                    );
-                }
-            }
             for name in &full.skipped_observers {
                 if !self.observers.iter().any(|o| o.name() == *name) {
                     panic!("{}: skip_observer {name} is not registered", entry.name);
@@ -329,6 +306,25 @@ impl Registry {
                     current = next;
                 }
             }
+        }
+    }
+
+    /// Panics if the Repo type `R` declared by an association differs from the one registered for
+    /// its Entity. An unregistered Entity is not checked.
+    pub(crate) fn check_declared_repo<R: GuardedRepo>(
+        &self,
+        table: &str,
+        association: &str,
+        role: &str,
+    ) {
+        let declared = RepoType::of::<R>();
+        if let Some(registered) = self.entries.get(&declared.entity)
+            && registered.repo_type.repo != declared.repo
+        {
+            panic!(
+                "{table}: association {association}: {role} type {} differs from the registered Repo type {}",
+                declared.name, registered.repo_type.name
+            );
         }
     }
 

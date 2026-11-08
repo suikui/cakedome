@@ -9,6 +9,7 @@ use sea_orm::{
 use serde_json::Value as Json;
 
 use super::reference::{selectable, selectable_by};
+use super::typed::require_id_key;
 use super::util::{can_contain, can_view, own_column, target_subquery};
 use super::util::{handle_of, primary_column};
 use super::{
@@ -87,6 +88,9 @@ where
     }
 
     fn verify(&self, owner: &EntityMeta, registry: &Registry) {
+        registry.check_declared_repo::<S>(&owner.name, self.name, "own");
+        registry.check_declared_repo::<T>(&owner.name, self.name, "target");
+        require_id_key::<T>(&owner.name, self.name, "target");
         let target = require_target(self, owner, registry);
         match self.binding_key {
             Some(binding) => check_binding_key_type(

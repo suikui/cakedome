@@ -14,6 +14,7 @@ use serde_json::{Map, Value as Json};
 use super::reference::{
     binding_values, bulk_delete, bulk_purge, delete, links_where, matching_by, purge, selectable,
 };
+use super::typed::require_id_key;
 use super::util::{
     ColumnOf, ModelOf, can_contain, can_view, handle_of, owner_value, primary_column,
     require_parent, row_id_of, row_key, strip_same_values, target_subquery,
@@ -90,6 +91,11 @@ where
     }
 
     fn verify(&self, owner: &EntityMeta, registry: &Registry) {
+        registry.check_declared_repo::<S>(&owner.name, self.name, "own");
+        registry.check_declared_repo::<T>(&owner.name, self.name, "target");
+        registry.check_declared_repo::<J>(&owner.name, self.name, "join table");
+        require_id_key::<S>(&owner.name, self.name, "parent");
+        require_id_key::<T>(&owner.name, self.name, "target");
         let target = require_target(self, owner, registry);
         // Removal is covered by `Replace` and `unlink`, so `AppendWithDelete` is not allowed here.
         if self.save == Some(SaveStrategy::AppendWithDelete) {

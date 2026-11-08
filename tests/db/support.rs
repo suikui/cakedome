@@ -16,6 +16,54 @@ use crate::entities::{
 
 pub use crate::backend::db;
 
+const TEST_DB_PREFIX: &str = "cakedome_test_";
+
+/// The creation time (ms since the epoch) in the name of a test DB, which is `cakedome_test_`
+/// followed by a simple-format UUID v7; `None` for any other name.
+pub fn test_db_created_at_ms(name: &str) -> Option<u64> {
+    let id = name.strip_prefix(TEST_DB_PREFIX)?;
+    if id.len() != 32 || !id.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return None;
+    }
+    u64::from_str_radix(&id[..12], 16).ok()
+}
+
+/// Whether a test DB is old enough (over an hour) to be left over from an earlier run.
+pub fn is_stale_test_db(name: &str) -> bool {
+    let Some(created) = test_db_created_at_ms(name) else {
+        return false;
+    };
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis() as u64);
+    now.saturating_sub(created) >= 3_600_000
+}
+
+#[test]
+fn the_creation_time_is_read_from_a_test_db_name() {
+    let name = format!("{TEST_DB_PREFIX}{}", uuid::Uuid::now_v7().simple());
+    let read = test_db_created_at_ms(&name).unwrap();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
+    assert!(now.saturating_sub(read) < 60_000);
+    assert!(!is_stale_test_db(&name));
+    assert!(is_stale_test_db(&format!(
+        "{TEST_DB_PREFIX}{:012x}70008000000000000000",
+        now - 7_200_000
+    )));
+    assert_eq!(test_db_created_at_ms("cakedome_test_abc"), None);
+    assert_eq!(
+        test_db_created_at_ms("other_0192f3b4c5d67890abcdef0123456789"),
+        None
+    );
+    assert_eq!(
+        test_db_created_at_ms(&format!("{TEST_DB_PREFIX}{}", "z".repeat(32))),
+        None
+    );
+}
+
 pub async fn connect(options: ConnectOptions) -> DatabaseConnection {
     let db = Database::connect(options).await.unwrap();
     let schema = Schema::new(db.get_database_backend());

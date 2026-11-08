@@ -22,7 +22,7 @@ use crate::context::Context;
 use crate::key::{Key, RowKey};
 use crate::meta::{column_named, default_order};
 use crate::policy::resolve;
-use crate::registry::{RepoConfig, RepoType};
+use crate::registry::RepoConfig;
 use crate::repo::{Repo, RepoError, RepoHandle};
 
 pub(super) type Marker<X> = PhantomData<fn() -> X>;
@@ -31,6 +31,9 @@ pub(super) type Marker<X> = PhantomData<fn() -> X>;
 ///
 /// `K` is the value type of the foreign key (default: the primary key type of `T`); set it with
 /// `.binding_key` when pointing at a non-primary-key column.
+///
+/// There is no `.label`: the label of a belongsTo is the label of its foreign key field
+/// (`RepoConfig::field`), so the association and the field cannot disagree.
 ///
 /// ```text
 /// const CUSTOMER: BelongsToOf<OrdersRepo, CustomersRepo> =
@@ -555,16 +558,9 @@ impl<E: EntityTrait, S: GuardedRepo<Entity = E>, T: GuardedRepo, K: RowKey> Decl
 where
     <S::Entity as EntityTrait>::Column: Send + Sync,
 {
-    fn register(self, mut config: RepoConfig<'_, E>) -> RepoConfig<'_, E> {
+    fn register(self, config: RepoConfig<'_, E>) -> RepoConfig<'_, E> {
         let table = <S as Repo>::repo_name();
         require_id_key::<T>(table, self.name, "target");
-        config.push_typed_checks(
-            self.name,
-            vec![
-                ("own", RepoType::of::<S>()),
-                ("target", RepoType::of::<T>()),
-            ],
-        );
         config.add_association(self)
     }
 }
@@ -574,16 +570,9 @@ impl<E: EntityTrait, S: GuardedRepo<Entity = E>, T: GuardedRepo, K: RowKey, C: A
 where
     <T::Entity as EntityTrait>::Column: Send + Sync,
 {
-    fn register(self, mut config: RepoConfig<'_, E>) -> RepoConfig<'_, E> {
+    fn register(self, config: RepoConfig<'_, E>) -> RepoConfig<'_, E> {
         let table = <S as Repo>::repo_name();
         require_id_key::<S>(table, self.name, "parent");
-        config.push_typed_checks(
-            self.name,
-            vec![
-                ("own", RepoType::of::<S>()),
-                ("target", RepoType::of::<T>()),
-            ],
-        );
         config.add_association(self)
     }
 }
@@ -599,18 +588,10 @@ impl<
 where
     <J::Entity as EntityTrait>::Column: Send + Sync,
 {
-    fn register(self, mut config: RepoConfig<'_, E>) -> RepoConfig<'_, E> {
+    fn register(self, config: RepoConfig<'_, E>) -> RepoConfig<'_, E> {
         let table = <S as Repo>::repo_name();
-        require_id_key::<S>(table, self.name, "target");
+        require_id_key::<S>(table, self.name, "parent");
         require_id_key::<T>(table, self.name, "target");
-        config.push_typed_checks(
-            self.name,
-            vec![
-                ("own", RepoType::of::<S>()),
-                ("target", RepoType::of::<T>()),
-                ("join table", RepoType::of::<J>()),
-            ],
-        );
         config.add_association(self)
     }
 }
@@ -621,7 +602,7 @@ fn sort_names<C: ColumnTrait>(sort: &[(C, SortOrder)]) -> Vec<(&'static str, Sor
         .collect()
 }
 
-fn require_id_key<R: GuardedRepo>(table: &str, name: &str, what: &str) {
+pub(super) fn require_id_key<R: GuardedRepo>(table: &str, name: &str, what: &str) {
     let mut keys = <<R::Entity as EntityTrait>::PrimaryKey as Iterable>::iter();
     let is_id = match (keys.next(), keys.next()) {
         (Some(key), None) => key.into_column().as_str() == "id",

@@ -932,3 +932,118 @@ fn repo_of_returns_the_arc_that_add_holds() {
     let registered = r.repo::<Products>().unwrap();
     assert!(std::sync::Arc::ptr_eq(&from_config, &registered));
 }
+
+// ---- declarations added with add_association ----
+
+mod coded_targets {
+    use sea_orm::entity::prelude::*;
+
+    #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
+    #[sea_orm(table_name = "coded_targets")]
+    pub struct Model {
+        #[sea_orm(primary_key)]
+        pub key: i64,
+    }
+
+    #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+    pub enum Relation {}
+
+    impl ActiveModelBehavior for ActiveModel {}
+}
+
+mod coded_refs {
+    use sea_orm::entity::prelude::*;
+
+    #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
+    #[sea_orm(table_name = "coded_refs")]
+    pub struct Model {
+        #[sea_orm(primary_key)]
+        pub id: i64,
+        pub target_key: i64,
+    }
+
+    #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+    pub enum Relation {}
+
+    impl ActiveModelBehavior for ActiveModel {}
+}
+
+macro_rules! other_repo {
+    ($name:ident, $entity:ty) => {
+        struct $name;
+        impl cakedome::repo::Repo for $name {
+            type Entity = $entity;
+        }
+        impl cakedome::policy::TablePolicy for $name {}
+        impl cakedome::policy::EntityPolicy for $name {}
+    };
+}
+
+other_repo!(OtherPosts, posts::Entity);
+other_repo!(OtherAccounts, accounts::Entity);
+other_repo!(OtherAccountGroups, account_groups::Entity);
+
+#[test]
+fn a_matching_declaration_added_with_add_association_passes_verify() {
+    const AUTHOR_OK: BelongsToOf<Posts, Accounts> =
+        BelongsToOf::new("author_ok", posts::Column::AccountId);
+    const GROUPS_OK: ManyToManyOf<Accounts, AccountGroups, Groups, String, String> =
+        ManyToManyOf::new(
+            "groups_ok",
+            account_groups::Column::Username,
+            account_groups::Column::GroupCode,
+        )
+        .binding_key(accounts::Column::Username)
+        .target_binding_key(groups::Column::Code);
+    let mut r = bound_registry(|_| {});
+    r.add(Accounts::new()).add_association(GROUPS_OK);
+    r.add(Posts::new()).add_association(AUTHOR_OK);
+    r.verify();
+}
+
+#[test]
+#[should_panic(expected = "own type")]
+fn belongs_to_with_another_own_type_added_with_add_association_panics() {
+    const BAD: BelongsToOf<OtherPosts, Accounts> =
+        BelongsToOf::new("bad", posts::Column::AccountId);
+    let mut r = bound_registry(|_| {});
+    r.add(Accounts::new());
+    r.add(Posts::new()).add_association(BAD);
+    r.verify();
+}
+
+#[test]
+#[should_panic(expected = "target type")]
+fn belongs_to_with_another_target_type_added_with_add_association_panics() {
+    const BAD: BelongsToOf<Posts, OtherAccounts> =
+        BelongsToOf::new("bad", posts::Column::AccountId);
+    let mut r = bound_registry(|_| {});
+    r.add(Accounts::new());
+    r.add(Posts::new()).add_association(BAD);
+    r.verify();
+}
+
+#[test]
+#[should_panic(expected = "join table type")]
+fn many_to_many_with_another_join_table_type_added_with_add_association_panics() {
+    const BAD: ManyToManyOf<Accounts, OtherAccountGroups, Groups> = ManyToManyOf::new(
+        "bad",
+        account_groups::Column::Username,
+        account_groups::Column::GroupCode,
+    );
+    let mut r = bound_registry(|_| {});
+    r.add(Accounts::new()).add_association(BAD);
+    r.verify();
+}
+
+#[test]
+#[should_panic(expected = "must have a single id column")]
+fn a_target_whose_primary_key_is_not_id_added_with_add_association_panics() {
+    const BAD: BelongsToOf<DefaultRepo<coded_refs::Entity>, DefaultRepo<coded_targets::Entity>> =
+        BelongsToOf::new("bad", coded_refs::Column::TargetKey);
+    let mut r = common::registry();
+    r.add(DefaultRepo::<coded_refs::Entity>::new())
+        .add_association(BAD);
+    r.add(DefaultRepo::<coded_targets::Entity>::new());
+    r.verify();
+}

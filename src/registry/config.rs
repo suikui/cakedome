@@ -7,7 +7,7 @@ use std::sync::Arc;
 use sea_orm::{EntityTrait, IdenStatic};
 use serde_json::Value;
 
-use super::{Effect, EffectMeta, EntityMeta, Entry, OnChange, Registry, RepoType, TypedCheck};
+use super::{Effect, EffectMeta, EntityMeta, Entry, OnChange, Registry};
 use crate::association::{Association, Declaration};
 use crate::defaults::DynamicDefault;
 use crate::json::LABEL_KEY;
@@ -210,23 +210,10 @@ impl<E: EntityTrait> RepoConfig<'_, E> {
         }
     }
 
-    pub(crate) fn push_typed_checks(
-        &mut self,
-        name: &'static str,
-        checks: Vec<(&'static str, RepoType)>,
-    ) {
-        let entry = self.entry();
-        entry.typed_checks.retain(|c| c.association != name);
-        for (role, declared) in checks {
-            entry.typed_checks.push(TypedCheck {
-                association: name,
-                role,
-                declared,
-            });
-        }
-    }
-
-    /// Adds an association, for `Declaration::register` of an app's own association kinds.
+    /// Adds an association, for an app's own association kinds.
+    ///
+    /// Built-in declarations are added with `association`. When a built-in declaration is added
+    /// here instead, `Registry::verify` still checks that its Repo types match the registered ones.
     ///
     /// Panics if the name is reserved, equals a column name or duplicates a registered association.
     pub fn add_association(mut self, association: impl Association) -> Self {
