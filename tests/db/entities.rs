@@ -262,6 +262,8 @@ pub mod setting_order_tags {
         pub order_id: i64,
         pub tag_id: i64,
         pub seq: i32,
+        #[sea_orm(column_type = "String(StringLen::N(50))", nullable)]
+        pub note: Option<String>,
     }
 
     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

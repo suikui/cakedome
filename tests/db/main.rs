@@ -8,11 +8,15 @@ mod common;
 mod entities;
 mod support;
 
+mod association_conditions;
 mod before_find;
+mod contain;
 mod extensions;
 mod hooks;
 mod keys;
 mod patch;
+mod patch_associations;
+mod patch_links;
 mod policy;
 mod purge;
 mod read;

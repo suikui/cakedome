@@ -10,8 +10,12 @@ mod entities;
 #[path = "../db/support.rs"]
 mod support;
 
+#[path = "../db/association_conditions.rs"]
+mod association_conditions;
 #[path = "../db/before_find.rs"]
 mod before_find;
+#[path = "../db/contain.rs"]
+mod contain;
 #[path = "../db/extensions.rs"]
 mod extensions;
 #[path = "../db/hooks.rs"]
@@ -20,6 +24,10 @@ mod hooks;
 mod keys;
 #[path = "../db/patch.rs"]
 mod patch;
+#[path = "../db/patch_associations.rs"]
+mod patch_associations;
+#[path = "../db/patch_links.rs"]
+mod patch_links;
 #[path = "../db/policy.rs"]
 mod policy;
 #[path = "../db/purge.rs"]
