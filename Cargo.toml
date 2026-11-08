@@ -8,6 +8,7 @@ repository = "https://github.com/suikui/cakedome"
 readme = "README.md"
 keywords = ["orm", "sea-orm", "database", "authorization", "policy"]
 categories = ["database"]
+exclude = [".github/", "deny.toml"]
 
 [dependencies]
 sea-orm = { version = "2.0", default-features = false, features = ["macros", "with-json", "with-chrono", "with-uuid", "with-rust_decimal"] }

@@ -186,6 +186,12 @@ CAKEDOME_TEST_MYSQL_URL=mysql://root:pass@localhost:3306/mysql \
 cargo test --all-features
 ```
 
+## Contributing
+
+Issues are welcome. Pull requests are not accepted and are closed automatically; please open an
+issue instead. Replies may take a while. See [CONTRIBUTING.md](CONTRIBUTING.md), and
+[SECURITY.md](SECURITY.md) for reporting a vulnerability.
+
 ## License
 
 Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or

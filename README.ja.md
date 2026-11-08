@@ -158,6 +158,10 @@ CAKEDOME_TEST_MYSQL_URL=mysql://root:pass@localhost:3306/mysql \
 cargo test --all-features
 ```
 
+## Issue と PR
+
+Issue は歓迎します。PR は受け付けておらず、自動で閉じます。代わりに Issue を開いてください。返事に時間がかかることがあります。詳しくは [CONTRIBUTING.md](CONTRIBUTING.md) を、脆弱性の報告は [SECURITY.md](SECURITY.md) を見てください。
+
 ## ライセンス
 
 [Apache License, Version 2.0](LICENSE-APACHE) と [MIT license](LICENSE-MIT) の、どちらかを選んで使えます。
