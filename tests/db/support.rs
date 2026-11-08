@@ -28,7 +28,7 @@ pub fn test_db_created_at_ms(name: &str) -> Option<u64> {
     u64::from_str_radix(&id[..12], 16).ok()
 }
 
-/// Whether a test DB is old enough (over an hour) to be left over from an earlier run.
+/// Whether a test DB is old enough (over ten minutes) to be left over from an earlier run.
 pub fn is_stale_test_db(name: &str) -> bool {
     let Some(created) = test_db_created_at_ms(name) else {
         return false;
@@ -36,7 +36,7 @@ pub fn is_stale_test_db(name: &str) -> bool {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_millis() as u64);
-    now.saturating_sub(created) >= 3_600_000
+    now.saturating_sub(created) >= 600_000
 }
 
 #[test]

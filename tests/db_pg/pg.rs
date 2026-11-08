@@ -10,7 +10,7 @@ use crate::support::{connect, is_stale_test_db};
 static SWEPT: AtomicBool = AtomicBool::new(false);
 
 /// Tests do not drop the schemas they create, so the first test of a run drops those left by
-/// earlier runs. Ones under an hour old may belong to a run in progress and are kept. Errors are
+/// earlier runs. Ones under ten minutes old may belong to a run in progress and are kept. Errors are
 /// ignored.
 async fn sweep(admin: &DatabaseConnection) {
     let rows = admin
