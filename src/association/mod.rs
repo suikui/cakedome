@@ -104,12 +104,14 @@ use std::collections::HashSet;
 use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::Arc;
 
 use sea_orm::Condition;
 use sea_orm::prelude::async_trait::async_trait;
 use serde_json::Value as Json;
 
 use crate::context::Context;
+use crate::json::TargetOps;
 use crate::key::{KeyKind, RowId, RowKey};
 use crate::marshal::FieldErrors;
 use crate::meta::FieldKind;
@@ -351,6 +353,11 @@ pub trait Association: Send + Sync + fmt::Debug + 'static {
 
     /// Builds the typed contain, boxed as `Arc<dyn TypedDecl<S>>`; the caller downcasts it.
     fn typed_contain(&self) -> Box<dyn Any + Send + Sync>;
+
+    /// Operations on the join table of a many-to-many; `None` for other kinds.
+    fn join_ops(&self) -> Option<Arc<dyn TargetOps>> {
+        None
+    }
 
     /// Returns whether the foreign key target can be chosen. Called only for kinds whose
     /// `owner_foreign_key` is `Some`.

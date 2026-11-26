@@ -3,6 +3,7 @@
 //! columns with `read_where` only for matching rows (`id` and `modified` are always shown).
 
 mod contain;
+mod target;
 
 use crate::repo::GuardedRepo;
 use std::any::Any;
@@ -32,6 +33,7 @@ pub const JOIN_DATA_KEY: &str = "_joinData";
 pub(crate) use contain::loaded_to_json;
 pub use contain::{ContainNode, ContainTree};
 pub use contain::{default_contain_tree, trace};
+pub use target::{DynColumn, NamedColumns, TargetOps, ops_of, target_ops};
 
 #[async_trait]
 pub(crate) trait JsonTarget: Send + Sync {

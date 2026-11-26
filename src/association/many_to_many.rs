@@ -2,6 +2,7 @@ use crate::repo::GuardedRepo;
 use std::any::Any;
 use std::collections::HashSet;
 use std::marker::PhantomData;
+use std::sync::Arc;
 
 use sea_orm::prelude::async_trait::async_trait;
 use sea_orm::sea_query::{Alias, Expr};
@@ -26,6 +27,7 @@ use super::{
 use super::{ManyToManyOf, NestedScope, RelationInfo, RelationKind, SaveStrategy, require_target};
 use super::{check_binding_key_type, check_key_type};
 use crate::context::Context;
+use crate::json::{TargetOps, ops_of};
 use crate::key::{Key, RowId, RowKey};
 use crate::marshal::FieldErrors;
 use crate::meta::column_named;
@@ -175,6 +177,10 @@ where
 
     fn typed_contain(&self) -> Box<dyn Any + Send + Sync> {
         typed_contain::<S, _>(*self)
+    }
+
+    fn join_ops(&self) -> Option<Arc<dyn TargetOps>> {
+        Some(ops_of::<J>())
     }
 
     fn as_any(&self) -> &dyn Any {
