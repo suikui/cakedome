@@ -17,7 +17,7 @@ use crate::association::{
     Arity, BelongsToOf, HasOf, LoadQuery, Loadable, ManyToManyOf, ModelOf, handle_of, key_value,
 };
 use crate::context::Context;
-use crate::json::{JsonFor, JsonTarget, json_join_of};
+use crate::json::{JsonFor, JsonTarget, TargetOps, json_join_of, ops_of};
 use crate::key::{Key, RowId, RowKey};
 use crate::registry::Registry;
 
@@ -529,6 +529,8 @@ pub(crate) trait TypedDecl<S: GuardedRepo>: Send + Sync {
     fn target_json(&self, ctx: &Context) -> Result<Box<dyn JsonTarget>, RepoError>;
 
     fn target_id_from_json(&self, value: &Json) -> Option<RowId>;
+
+    fn target_ops(&self) -> Arc<dyn TargetOps>;
 }
 
 pub(crate) fn typed_decl_of<S: GuardedRepo>(
@@ -591,6 +593,10 @@ where
 
     fn target_id_from_json(&self, value: &Json) -> Option<RowId> {
         Key::<T>::from_json(value).map(RowKey::into_row_id)
+    }
+
+    fn target_ops(&self) -> Arc<dyn TargetOps> {
+        ops_of::<T>()
     }
 }
 

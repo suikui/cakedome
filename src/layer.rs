@@ -16,8 +16,8 @@ use crate::repo::GuardedRepo;
 pub use crate::association::reference::selectable;
 pub use crate::association::util::{primary_column, read_in, row_key, target_id_from_json};
 pub use crate::json::{
-    ContainNode, ContainTree, JOIN_DATA_KEY, JsonFor, LABEL_KEY, Readability, default_contain_tree,
-    trace,
+    ContainNode, ContainTree, DynColumn, JOIN_DATA_KEY, JsonFor, LABEL_KEY, NamedColumns,
+    Readability, TargetOps, default_contain_tree, ops_of, target_ops, trace,
 };
 pub use crate::policy::columns::{table_readable, table_writable};
 pub use crate::repo::contain::{NameTree, load_related};

@@ -48,6 +48,8 @@ mod relations;
 mod row_lock;
 #[path = "../db/save_associations.rs"]
 mod save_associations;
+#[path = "../db/target_ops.rs"]
+mod target_ops;
 #[path = "../db/unique_and_warnings.rs"]
 mod unique_and_warnings;
 #[path = "../db/unordered_links.rs"]

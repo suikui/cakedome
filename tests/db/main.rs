@@ -27,6 +27,7 @@ mod read;
 mod relations;
 mod save_associations;
 mod sqlite_only;
+mod target_ops;
 mod unique_and_warnings;
 mod unordered_links;
 mod write;
