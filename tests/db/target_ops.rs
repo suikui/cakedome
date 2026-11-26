@@ -1,15 +1,19 @@
 //! The operations on the target of an association (`layer::TargetOps`): taken from the
 //! declaration, they run with the target Repo type, without looking the target up by name.
 
+use std::any::Any;
 use std::collections::HashMap;
 
 use cakedome::Context;
-use cakedome::association::{Association, BelongsToOf, HasManyOf, HasOneOf, ManyToManyOf};
+use cakedome::association::{
+    Association, AssociationType, BelongsToOf, Cardinality, HasManyOf, HasOneOf, ManyToManyOf,
+    RelationInfo,
+};
 use cakedome::key::RowId;
 use cakedome::layer::{ContainTree, NamedColumns, ops_of, target_ops, trace};
 use cakedome::policy::{Action, ColumnAccess, EntityPolicy, TablePolicy};
-use cakedome::registry::{Registry, RepoConfig};
-use cakedome::repo::{DefaultRepo, Repo, RepoError};
+use cakedome::registry::{EntityMeta, Registry, RepoConfig};
+use cakedome::repo::{DefaultRepo, Repo, RepoError, typed_contain};
 use sea_orm::prelude::async_trait::async_trait;
 use sea_orm::sea_query::{Expr, LikeExpr};
 use sea_orm::{
@@ -88,6 +92,68 @@ impl Repo for OrdersRepo {
 
 impl TablePolicy for OrdersRepo {}
 impl EntityPolicy for OrdersRepo {}
+
+/// An association kind of the app's own, wrapping the customer of an order. With `typed`, its
+/// typed contain is built with `repo::typed_contain`; without, it has none.
+#[derive(Debug)]
+struct OwnKind {
+    inner: BelongsToOf<OrdersRepo, CustomersRepo>,
+    typed: bool,
+}
+
+#[async_trait]
+impl Association for OwnKind {
+    fn name(&self) -> &'static str {
+        "own_customer"
+    }
+
+    fn target(&self) -> &'static str {
+        Association::target(&self.inner)
+    }
+
+    fn info(&self) -> RelationInfo {
+        RelationInfo {
+            name: "own_customer",
+            ..self.inner.info()
+        }
+    }
+
+    fn cardinality(&self) -> Cardinality {
+        self.inner.cardinality()
+    }
+
+    fn verify(&self, owner: &EntityMeta, registry: &Registry) {
+        self.inner.verify(owner, registry);
+    }
+
+    async fn usable(&self, ctx: &Context) -> Result<bool, RepoError> {
+        self.inner.usable(ctx).await
+    }
+
+    fn association_type(&self) -> AssociationType {
+        self.inner.association_type()
+    }
+
+    async fn matching_condition(
+        &self,
+        ctx: &Context,
+        target: Condition,
+    ) -> Result<Condition, RepoError> {
+        self.inner.matching_condition(ctx, target).await
+    }
+
+    fn typed_contain(&self) -> Box<dyn Any + Send + Sync> {
+        if self.typed {
+            typed_contain::<OrdersRepo, _>(self.inner)
+        } else {
+            Box::new(())
+        }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
 
 fn build() -> Registry {
     let mut r = registry();
@@ -521,4 +587,27 @@ async fn column_target_of_and_matching_condition_filter_through_two_associations
         .collect();
     titles.sort();
     assert_eq!(titles, vec!["注文B1", "注文B2"]);
+}
+
+#[test]
+fn an_own_association_kind_gives_the_operations_of_its_target() {
+    let typed = OwnKind {
+        inner: OrdersRepo::CUSTOMER,
+        typed: true,
+    };
+    let ops = target_ops::<OrdersRepo>(&typed).unwrap();
+    assert_eq!(ops.name(), "customers");
+    assert_eq!(
+        ops.target_of(&CustomersRepo::BILLING).unwrap().name(),
+        "customer_billings"
+    );
+    assert!(ops_of::<OrdersRepo>().target_of(&typed).is_some());
+    assert!(typed.join_ops().is_none());
+
+    let untyped = OwnKind {
+        inner: OrdersRepo::CUSTOMER,
+        typed: false,
+    };
+    assert!(target_ops::<OrdersRepo>(&untyped).is_none());
+    assert!(ops_of::<OrdersRepo>().target_of(&untyped).is_none());
 }
