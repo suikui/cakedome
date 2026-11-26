@@ -4,6 +4,24 @@ All notable changes to this project are documented in this file. The format is b
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-11-26
+
+### Added
+
+- `layer::TargetOps`: operations on the target of an association, run with the target Repo type
+  so that a layer on top of the ORM can handle the target without looking it up by name: `name`,
+  `can`, `columns`, `rows_json` (reads target rows by id as JSON with their labels and a contain
+  tree), `target_of` (the target of one of the target's associations) and `column`.
+- `layer::target_ops::<S>(association)` and `layer::ops_of::<R>()` to get the `TargetOps` of an
+  association's target or of a Repo type. `target_ops` works with custom association kinds whose
+  `typed_contain` is built with `repo::typed_contain`.
+- `layer::NamedColumns`: column access looked up by field (`table_readable`, `table_writable`,
+  `read_scope`), implemented for `ColumnAccess<E>`.
+- `layer::DynColumn`: a column with its type erased that builds the same expressions as
+  `ColumnTrait`, including the `save_as` cast of values.
+- `Association::join_ops`: the `TargetOps` of the join table of a many-to-many; `None` by default,
+  so existing custom association kinds keep compiling.
+
 ## [0.1.1] - 2026-11-08
 
 ### Fixed
@@ -26,5 +44,6 @@ All notable changes to this project are documented in this file. The format is b
 
 First release.
 
+[0.1.2]: https://github.com/suikui/cakedome/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/suikui/cakedome/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/suikui/cakedome/releases/tag/v0.1.0
